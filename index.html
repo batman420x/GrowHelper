@@ -1,297 +1,385 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hydroponischer Cannabis-Anbau</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grow Helper</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha512-Pj8mp9G2K5U5jQeGyFPJ0J7NRMu3Ak2SmfBQ3fF3kE4JZP49yl8ODmG+dxIp9W4T0s4Acp0rB8qO8Ffi+uzKQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
+            background-color: #f5f5f5;
         }
-        .container {
-            max-width: 800px;
-            margin: auto;
+        h1 {
+            text-align: center;
         }
-        .input-group {
+        label, select, input {
+            margin: 10px;
+        }
+        .button-group {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             margin-bottom: 20px;
         }
-        label {
-            display: block;
-            margin-bottom: 5px;
-        }
-        input[type="number"], select, input[type="text"] {
-            flex: 1;
-            padding: 8px;
-            margin-left: 10px;
-            box-sizing: border-box;
-        }
-        canvas {
-            margin-top: 20px;
-        }
-        .chart-container {
-            margin-top: 40px;
-        }
-        .buttons {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-        }
-        button {
-            flex: 1;
-            padding: 10px;
+        .button-group button {
             margin: 5px;
+            padding: 10px 20px;
+            border: none;
             cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .button-group button.active {
+            background-color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        .highlight {
+            background-color: yellow;
+        }
+        .popup {
+            display: none;
+            position: absolute;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+        }
+        .popup span.close {
+            position: absolute;
+            right: 5px;
+            top: 5px;
+            cursor: pointer;
+            color: #007bff;
+        }
+        .info-icon {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+        .info-icon:hover .popup {
+            display: block;
+        }
+        .popup:hover {
+            display: block;
+        }
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 500;
         }
     </style>
 </head>
 <body>
-<div class="container">
-<h1>Hydroponischer Anbau von medizinischem Cannabis</h1>
-<div class="input-group">
-<label for="growthWeeks">Wachstumswochen:</label>
-<input type="number" id="growthWeeks" value="4" min="1" max="16">
-</div>
-<div class="input-group">
-<label for="bloomWeeks">Blütewochen:</label>
-<input type="number" id="bloomWeeks" value="9" min="1" max="16">
-</div>
-<div class="input-group">
-<label for="parameters">Parameter:</label>
-<select id="parameters" multiple>
-<option value="temp">Temperatur (°C)</option>
-<option value="RLF">Relative Luftfeuchtigkeit (%)</option>
-<option value="VPD">VPD (kPa)</option>
-<option value="PH">pH-Wert</option>
-<option value="EC">EC-Wert (mS/cm)</option>
-<option value="PPFD">PPFD (µmol/m²/s)</option>
-<option value="DLI">DLI (mol/m²/d)</option>
-</select>
-</div>
-<div class="input-group">
-<label for="currentValues">Aktuelle Werte (Komma getrennt):</label>
-<input type="text" id="currentValues">
-</div>
-<div class="buttons">
-<button onclick="updateChart()">Aktualisieren</button>
-<button onclick="showSeparateCharts()">Einzelne Diagramme</button>
-</div>
-<canvas id="growthChart"></canvas>
-</div>
-<div class="container chart-container" id="separateChartsContainer"></div>
-<script>
-        document.addEventListener("DOMContentLoaded", function() {
-            document.getElementById('parameters').selectedOptions = [{ value: 'temp' }, { value: 'RLF' }];
-            updateChart();
-        });
+    <h1>Grow Helper</h1>
 
-        const ctx = document.getElementById('growthChart').getContext('2d');
-        let growthWeeks = document.getElementById('growthWeeks').value;
-        let bloomWeeks = document.getElementById('bloomWeeks').value;
+    <div class="button-group">
+        <button onclick="showPopup('vpdPopup')">VPD Rechner</button>
+        <button onclick="showPopup('costPopup')">Stromkosten Rechner</button>
+    </div>
 
-        const data = {
-            labels: Array.from({ length: parseInt(growthWeeks) + parseInt(bloomWeeks) }, (_, i) => `Woche ${i + 1}`),
-            datasets: []
+    <div class="button-group">
+        <button id="soilButton" class="grow-type-button active" onclick="setGrowType('soil')">Erde</button>
+        <button id="hydroButton" class="grow-type-button" onclick="setGrowType('hydro')">Hydroponic</button>
+    </div>
+
+    <div>
+        <label for="vegWeeks">Wochen für Wachstum:</label>
+        <input type="number" id="vegWeeks" value="4" min="1" onchange="updateValues()">
+    </div>
+
+    <div>
+        <label for="flowerWeeks">Wochen für Blüte:</label>
+        <input type="number" id="flowerWeeks" value="8" min="1" onchange="updateValues()">
+    </div>
+
+    <div class="button-group">
+        <button id="vegButton" class="phase-button active" onclick="setPhase('veg')">Wachstum</button>
+        <button id="flowerButton" class="phase-button" onclick="setPhase('flower')">Blüte</button>
+    </div>
+
+    <div class="button-group" id="weekButtons">
+        <!-- Week buttons will be generated here -->
+    </div>
+
+    <h2>Relevante Werte</h2>
+    <table id="valuesTable">
+        <thead>
+            <tr>
+                <th>Phase</th>
+                <th>Woche</th>
+                <th>Licht (Stunden)</th>
+                <th>pH-Wert</th>
+                <th>EC (ms/cm)</th>
+                <th>VPD (kPa)</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <canvas id="valuesChart"></canvas>
+
+    <div id="overlay" onclick="hidePopup()"></div>
+
+    <div id="vpdPopup" class="popup">
+        <span class="close" onclick="hidePopup()">&times;</span>
+        <h2>VPD Rechner</h2>
+        <label for="tempInput">Temperatur (°C):</label>
+        <input type="number" id="tempInput">
+        <br><br>
+        <label for="humidityInput">Luftfeuchtigkeit (%):</label>
+        <input type="number" id="humidityInput">
+        <br><br>
+        <button onclick="calculateVPD()">Berechnen</button>
+        <p id="vpdResult"></p>
+    </div>
+
+    <div id="costPopup" class="popup">
+        <span class="close" onclick="hidePopup()">&times;</span>
+        <h2>Stromkosten Rechner</h2>
+        <label for="powerInput">Leistung (Watt):</label>
+        <input type="number" id="powerInput">
+        <br><br>
+        <label for="hoursInput">Stunden pro Tag:</label>
+        <input type="number" id="hoursInput">
+        <br><br>
+        <label for="daysInput">Tage:</label>
+        <input type="number" id="daysInput">
+        <br><br>
+        <label for="costPerKWhInput">Kosten pro kWh (€):</label>
+        <input type="number" id="costPerKWhInput" step="0.01">
+        <br><br>
+        <button onclick="calculateCost()">Berechnen</button>
+        <p id="costResult"></p>
+    </div>
+
+    <script>
+        const defaultValues = {
+            soil: {
+                veg: [
+                    { week: 1, light: 18, ph: 5.8, ec: 0.6, vpd: 0.8 },
+                    { week: 2, light: 18, ph: 5.8, ec: 0.7, vpd: 0.9 },
+                    { week: 3, light: 18, ph: 5.8, ec: 0.8, vpd: 1.0 },
+                    { week: 4, light: 18, ph: 5.8, ec: 0.9, vpd: 1.1 }
+                ],
+                flower: [
+                    { week: 1, light: 12, ph: 6.5, ec: 1.0, vpd: 1.2 },
+                    { week: 2, light: 12, ph: 6.6, ec: 1.1, vpd: 1.2 },
+                    { week: 3, light: 12, ph: 6.6, ec: 1.2, vpd: 1.2 },
+                    { week: 4, light: 12, ph: 6.7, ec: 1.3, vpd: 1.2 },
+                    { week: 5, light: 12, ph: 6.7, ec: 1.4, vpd: 1.2 },
+                    { week: 6, light: 12, ph: 6.8, ec: 1.5, vpd: 1.3 },
+                    { week: 7, light: 12, ph: 6.8, ec: 1.6, vpd: 1.3 },
+                    { week: 8, light: 12, ph: 6.8, ec: 1.7, vpd: 1.3 }
+                ]
+            },
+            hydro: {
+                veg: [
+                    { week: 1, light: 18, ph: 5.8, ec: 1.0, vpd: 0.8 },
+                    { week: 2, light: 18, ph: 5.8, ec: 1.1, vpd: 0.9 },
+                    { week: 3, light: 18, ph: 5.8, ec: 1.2, vpd: 1.0 },
+                    { week: 4, light: 18, ph: 5.8, ec: 1.3, vpd: 1.1 }
+                ],
+                flower: [
+                    { week: 1, light: 12, ph: 6.0, ec: 1.0, vpd: 1.2 },
+                    { week: 2, light: 12, ph: 6.1, ec: 1.1, vpd: 1.2 },
+                    { week: 3, light: 12, ph: 6.2, ec: 1.2, vpd: 1.2 },
+                    { week: 4, light: 12, ph: 6.2, ec: 1.3, vpd: 1.2 },
+                    { week: 5, light: 12, ph: 6.3, ec: 1.4, vpd: 1.2 },
+                    { week: 6, light: 12, ph: 6.3, ec: 1.5, vpd: 1.3 },
+                    { week: 7, light: 12, ph: 6.3, ec: 1.6, vpd: 1.3 },
+                    { week: 8, light: 12, ph: 6.3, ec: 1.7, vpd: 1.3 }
+                ]
+            }
         };
 
-        const config = {
+        function updateValues() {
+            const growType = document.querySelector('.grow-type-button.active').id === 'soilButton' ? 'soil' : 'hydro';
+            const vegWeeks = parseInt(document.getElementById('vegWeeks').value);
+            const flowerWeeks = parseInt(document.getElementById('flowerWeeks').value);
+            const currentPhase = document.querySelector('.phase-button.active').id === 'vegButton' ? 'veg' : 'flower';
+            const currentWeek = parseInt(document.querySelector('.week-button.active').dataset.week);
+
+            const tbody = document.querySelector('#valuesTable tbody');
+            tbody.innerHTML = '';
+
+            const phases = ['veg', 'flower'];
+            const weeks = { veg: vegWeeks, flower: flowerWeeks };
+            const values = [];
+
+            phases.forEach(phase => {
+                for (let week = 1; week <= weeks[phase]; week++) {
+                    const value = defaultValues[growType][phase][week - 1] || defaultValues[growType][phase][defaultValues[growType][phase].length - 1];
+                    const row = document.createElement('tr');
+                    if (phase === currentPhase && week === currentWeek) {
+                        row.classList.add('highlight');
+                    }
+                    row.innerHTML = `
+                        <td>${phase === 'veg' ? 'Wachstum' : 'Blüte'}</td>
+                        <td>${week}</td>
+                        <td>${value.light}</td>
+                        <td>${value.ph}</td>
+                                           <td>${value.ec}</td>
+                    <td class="info-icon" onmouseover="showPopup('vpdInfoPopup')" onmouseout="hidePopup()">${value.vpd}
+                        <span class="popup" id="vpdInfoPopup">Möglicher Temperaturbereich: 18-24°C<br>Möglicher RLF-Bereich: 40-60%</span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+                values.push({ week, phase, ...value });
+            }
+        });
+
+        renderWeekButtons(currentPhase, weeks[currentPhase]);
+        renderChart(values, weeks[currentPhase]);
+    }
+
+    function renderWeekButtons(phase, weeks) {
+        const weekButtonsContainer = document.getElementById('weekButtons');
+        weekButtonsContainer.innerHTML = '';
+
+        for (let week = 1; week <= weeks; week++) {
+            const button = document.createElement('button');
+            button.classList.add('week-button');
+            button.dataset.week = week;
+            button.textContent = `Woche ${week}`;
+            button.onclick = () => setWeek(week);
+            if (week === 1) button.classList.add('active');
+            weekButtonsContainer.appendChild(button);
+        }
+    }
+
+    function renderChart(values, weeks) {
+        const ctx = document.getElementById('valuesChart').getContext('2d');
+        const data = {
+            labels: values.map(v => `Woche ${v.week} (${v.phase === 'veg' ? 'Wachstum' : 'Blüte'})`),
+            datasets: [
+                {
+                    label: 'Licht (Stunden)',
+                    data: values.map(v => v.light),
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    fill: false
+                },
+                {
+                    label: 'pH-Wert',
+                    data: values.map(v => v.ph),
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1,
+                    fill: false
+                },
+                {
+                    label: 'EC (ms/cm)',
+                    data: values.map(v => v.ec),
+                    borderColor: 'rgba(153, 102, 255, 1)',
+                    borderWidth: 1,
+                    fill: false
+                }
+            ]
+        };
+
+        new Chart(ctx, {
             type: 'line',
             data: data,
             options: {
+                responsive: true,
                 scales: {
-                    y: {
-                        beginAtZero: false
-                    }
-                }
-            }
-        };
-
-        const chart = new Chart(ctx, config);
-
-        const optimalRanges = {
-            temp: {
-                growth: [
-                    [20, 25], [21, 26], [22, 27], [23, 27]
-                ],
-                bloom: [
-                    [24, 28], [24, 28], [24, 28], [23, 27], [22, 26], [21, 25], [20, 24], [19, 24], [18, 23]
-                ]
-            },
-            RLF: {
-                growth: [
-                    [65, 75], [60, 70], [55, 65], [50, 60]
-                ],
-                bloom: [
-                    [50, 60], [50, 60], [45, 55], [45, 55], [40, 50], [40, 50], [40, 50], [40, 50], [40, 45]
-                ]
-            },
-            VPD: {
-                growth: [
-                    [0.6, 0.8], [0.7, 0.9], [0.8, 1.0], [0.9, 1.1]
-                ],
-                bloom: [
-                    [1.2, 1.4], [1.3, 1.5], [1.4, 1.6], [1.4, 1.6], [1.4, 1.6], [1.4, 1.6], [1.5, 1.7], [1.4, 1.6], [1.3, 1.5]
-                ]
-            },
-            PH: {
-                growth: [
-                    [5.5, 5.8], [5.6, 5.9], [5.7, 6.0], [5.8, 6.1]
-                ],
-                bloom: [
-                    [5.8, 6.1], [5.9, 6.2], [6.0, 6.3], [6.0, 6.3], [6.1, 6.4], [6.2, 6.5], [6.2, 6.5], [6.3, 6.5], [6.3, 6.5]
-                ]
-            },
-            EC: {
-                growth: [
-                    [0.3, 0.6], [0.4, 0.7], [0.5, 0.8], [0.6, 1.1]
-                ],
-                bloom: [
-                    [1.1, 1.4], [1.2, 1.5], [1.2, 1.6], [1.2, 1.7], [1.2, 1.8], [1.2, 1.9], [1.2, 2.0], [1.1, 2.0], [1.0, 2.0]
-                ]
-            },
-            PPFD: {
-                growth: [
-                    [400, 500], [450, 550], [500, 600], [550, 650]
-                ],
-                bloom: [
-                    [600, 700], [650, 750], [700, 800], [750, 850], [800, 900], [850, 950], [900, 1000], [950, 1050], [1000, 1100]
-                ]
-            },
-            DLI: {
-                growth: [
-                    [20, 25], [22, 27], [24, 29], [26, 31]
-                ],
-                bloom: [
-                    [28, 33], [30, 35], [32, 37], [34, 39], [36, 41], [38, 43], [40, 45], [42, 47], [44, 49]
-                ]
-            }
-        };
-
-        function updateChart() {
-            growthWeeks = document.getElementById('growthWeeks').value;
-            bloomWeeks = document.getElementById('bloomWeeks').value;
-            const selectedParameters = Array.from(document.getElementById('parameters').selectedOptions).map(option => option.value);
-            const currentValues = document.getElementById('currentValues').value.split(',').map(value => parseFloat(value.trim()));
-
-            const totalWeeks = parseInt(growthWeeks) + parseInt(bloomWeeks);
-            const labels = Array.from({ length: totalWeeks }, (_, i) => `Woche ${i + 1}`);
-            data.labels = labels;
-            data.datasets = [];
-
-            selectedParameters.forEach((parameter, index) => {
-                const minOptimal = [];
-                const maxOptimal = [];
-                for (let i = 0; i < totalWeeks; i++) {
-                    const phase = i < growthWeeks ? 'growth' : 'bloom';
-                    const weekIndex = i < growthWeeks ? i : i - growthWeeks;
-                    minOptimal.push(optimalRanges[parameter][phase][weekIndex][0]);
-                    maxOptimal.push(optimalRanges[parameter][phase][weekIndex][1]);
-                }
-
-                data.datasets.push({
-                    label: `Minimaler Optimaler Wert (${parameter})`,
-                    data: minOptimal,
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    fill: false,
-                    stepped: true,
-                });
-
-                data.datasets.push({
-                    label: `Maximaler Optimaler Wert (${parameter})`,
-                    data: maxOptimal,
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    fill: false,
-                    stepped: true,
-                });
-
-                if (currentValues[index] !== undefined) {
-                    const current = Array(totalWeeks).fill(currentValues[index]);
-                    data.datasets.push({
-                        label: `Aktueller Wert (${parameter})`,
-                        data: current,
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                        fill: false,
-                    });
-                }
-            });
-
-            chart.update();
-        }
-
-        function showSeparateCharts() {
-            const container = document.getElementById('separateChartsContainer');
-            container.innerHTML = '';
-            const selectedParameters = Array.from(document.getElementById('parameters').selectedOptions).map(option => option.value);
-            const currentValues = document.getElementById('currentValues').value.split(',').map(value => parseFloat(value.trim()));
-
-            selectedParameters.forEach((parameter, index) => {
-                const canvas = document.createElement('canvas');
-                container.appendChild(canvas);
-                const ctx = canvas.getContext('2d');
-                const minOptimal = [];
-                const maxOptimal = [];
-                const totalWeeks = parseInt(growthWeeks) + parseInt(bloomWeeks);
-
-                                    for (let i = 0; i < totalWeeks; i++) {
-                        const phase = i < growthWeeks ? 'growth' : 'bloom';
-                        const weekIndex = i < growthWeeks ? i : i - growthWeeks;
-                        minOptimal.push(optimalRanges[parameter][phase][weekIndex][0]);
-                        maxOptimal.push(optimalRanges[parameter][phase][weekIndex][1]);
-                    }
-
-                    const separateChartData = {
-                        labels: Array.from({ length: totalWeeks }, (_, i) => `Woche ${i + 1}`),
-                        datasets: [
-                            {
-                                label: `Minimaler Optimaler Wert (${parameter})`,
-                                data: minOptimal,
-                                borderColor: 'rgba(75, 192, 192, 1)',
-                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                                fill: false,
-                                stepped: true,
-                            },
-                            {
-                                label: `Maximaler Optimaler Wert (${parameter})`,
-                                data: maxOptimal,
-                                borderColor: 'rgba(54, 162, 235, 1)',
-                                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                                fill: false,
-                                stepped: true,
-                            }
-                        ]
-                    };
-
-                    if (currentValues[index] !== undefined) {
-                        const current = Array(totalWeeks).fill(currentValues[index]);
-                        separateChartData.datasets.push({
-                            label: `Aktueller Wert (${parameter})`,
-                            data: current,
-                            borderColor: 'rgba(255, 99, 132, 1)',
-                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                            fill: false,
-                        });
-                    }
-
-                    new Chart(ctx, {
-                        type: 'line',
-                        data: separateChartData,
-                        options: {
-                            scales: {
-                                y: {
-                                    beginAtZero: false
-                                }
-                            }
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Wochen'
                         }
-                    });
-                });
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Werte'
+                        }
+                    }
+                }
             }
-        </script>
-</div>
+        });
+    }
+
+    function setGrowType(type) {
+        document.querySelectorAll('.grow-type-button').forEach(button => button.classList.remove('active'));
+        document.getElementById(`${type}Button`).classList.add('active');
+        updateValues();
+    }
+
+    function setPhase(phase) {
+        document.querySelectorAll('.phase-button').forEach(button => button.classList.remove('active'));
+        document.getElementById(`${phase}Button`).classList.add('active');
+        updateValues();
+    }
+
+    function setWeek(week) {
+        document.querySelectorAll('.week-button').forEach(button => button.classList.remove('active'));
+        document.querySelector(`.week-button[data-week='${week}']`).classList.add('active');
+        updateValues();
+    }
+
+    function showPopup(popupId) {
+        document.getElementById('overlay').style.display = 'block';
+        document.getElementById(popupId).style.display = 'block';
+    }
+
+    function hidePopup() {
+        document.getElementById('overlay').style.display = 'none';
+        document.querySelectorAll('.popup').forEach(popup => popup.style.display = 'none');
+    }
+
+    function calculateVPD() {
+        const temp = parseFloat(document.getElementById('tempInput').value);
+        const humidity = parseFloat(document.getElementById('humidityInput').value);
+        const vpd = ((610.78 * Math.exp(temp / (temp + 237.3) * 17.27) * (1 - humidity / 100)) / 1000).toFixed(2);
+        document.getElementById('vpdResult').innerText = `VPD: ${vpd} kPa`;
+    }
+
+    function calculateCost() {
+        const power = parseFloat(document.getElementById('powerInput').value);
+        const hours = parseFloat(document.getElementById('hoursInput').value);
+        const days = parseFloat(document.getElementById('daysInput').value);
+        const costPerKWh = parseFloat(document.getElementById('costPerKWhInput').value);
+        const totalCost = ((power * hours * days) / 1000 * costPerKWh).toFixed(2);
+        document.getElementById('costResult').innerText = `Stromkosten: €${totalCost}`;
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.grow-type-button').forEach(button => button.classList.remove('active'));
+        document.getElementById('soilButton').classList.add('active');
+        document.querySelectorAll('.phase-button').forEach(button => button.classList.remove('active'));
+        document.getElementById('vegButton').classList.add('active');
+        renderWeekButtons('veg', 4);
+        updateValues();
+    });
+    </script>
 </body>
 </html>
